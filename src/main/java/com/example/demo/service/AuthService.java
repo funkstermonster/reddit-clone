@@ -17,16 +17,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import javax.transaction.Transactional;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 @Service
 @AllArgsConstructor
+@Transactional
 public class AuthService {
-
 
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
@@ -43,11 +43,8 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
         user.setCreated(Instant.now());
         user.setEnabled(false);
-
         userRepository.save(user);
-
         generateVerificationToken(user);
-
         String token = generateVerificationToken(user);
         mailService.sendMail(new NotificationEmail("Please activate your account!",
                 user.getEmail(), "Thank you for signing up to Spring Reddit clone, " +

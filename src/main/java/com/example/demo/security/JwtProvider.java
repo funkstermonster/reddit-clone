@@ -1,47 +1,42 @@
 package com.example.demo.security;
 
-import com.example.demo.exception.SpringRedditException;
-import com.example.demo.model.User;
+import com.example.demo.service.UserDetailServiceImpl;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import org.springframework.beans.factory.annotation.Value;
+import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.*;
-import java.security.cert.CertificateException;
-import java.sql.Date;
 import java.time.Instant;
 
-import static io.jsonwebtoken.Jwts.*;
+import static io.jsonwebtoken.Jwts.parserBuilder;
 import static java.util.Date.from;
 
 @Service
 public class JwtProvider {
 
-    private KeyStore keyStore;
-    @Value("${jwt.expiration.time}")
-    private Long jwtExpirationInMillis;
+
+    private String secretkey;
+    private String username;
+
+    public JwtProvider(String username) {
+        this.username = username;
+    }
 
     @PostConstruct
     public void init() {
-        try {
-            keyStore = KeyStore.getInstance("JKS");
-            InputStream resourceAsStream = getClass().getResourceAsStream("/springforum.jks");
-            keyStore.load(resourceAsStream, "secret".toCharArray());
-        } catch (KeyStoreException | CertificateException | NoSuchAlgorithmException | IOException e) {
-            throw new SpringRedditException("Exception occurred while loading keystore.");
-        }
+        secretkey = "secret";
+
     }
 
+
     public String generateToken(Authentication authentication) {
-        User principal = (User) authentication.getPrincipal();
+        UserDetailServiceImpl principal = (UserDetailServiceImpl) authentication.getPrincipal();
         return Jwts.builder()
                 .setSubject(principal.getUsername())
-                .signWith(getPrivateKey())
+                .signWith(SignatureAlgorithm.HS512, secretkey)
                 .compact();
     }
 
@@ -49,36 +44,28 @@ public class JwtProvider {
         return Jwts.builder()
                 .setSubject(username)
                 .setIssuedAt(from(Instant.now()))
-                .signWith(getPrivateKey())
-                .setExpiration(Date.from(Instant.now().plusMillis(jwtExpirationInMillis)))
+                .signWith(SignatureAlgorithm.HS512, secretkey)
                 .compact();
     }
 
-    private PrivateKey getPrivateKey() {
-        try {
-            return (PrivateKey) keyStore.getKey("springforum", "secret".toCharArray());
-
-        } catch (KeyStoreException | NoSuchAlgorithmException | UnrecoverableKeyException e) {
-            throw new SpringRedditException("Exception occurred while retrieving public key from keystore");
-        }
+    private String getPrivateKey() {
+        return secretkey;
     }
 
     public boolean validateToken(String jwt) {
-       parserBuilder().setSigningKey(getPublicKey()).build().parseClaimsJws(jwt);
-       return true;
+       try {
+           parserBuilder().setSigningKey(secretkey).build().parseClaimsJws(jwt);
+           return true;
+       } catch (JwtException e) {
+           System.err.println(e.getMessage());
+       }
+       return false;
     }
 
-    public PublicKey getPublicKey() {
-        try {
-            return keyStore.getCertificate("springforum").getPublicKey();
-        } catch (KeyStoreException e) {
-            throw new SpringRedditException("Exception occurred while " + "retrieving public key from keystore");
-        }
-    }
 
     public String getUsernameFromJwt(String token) {
         Claims claims = parserBuilder()
-                .setSigningKey(getPublicKey())
+                .setSigningKey(secretkey)
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
@@ -86,7 +73,5 @@ public class JwtProvider {
         return claims.getSubject();
     }
 
-    public Long getJwtExpirationInMillis() {
-        return jwtExpirationInMillis;
-    }
+
 }
