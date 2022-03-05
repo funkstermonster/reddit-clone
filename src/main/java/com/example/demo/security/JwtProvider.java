@@ -1,6 +1,6 @@
 package com.example.demo.security;
 
-import com.example.demo.service.UserDetailServiceImpl;
+import com.example.demo.service.UserDetailsImpl;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -19,11 +19,6 @@ public class JwtProvider {
 
 
     private String secretkey;
-    private String username;
-
-    public JwtProvider(String username) {
-        this.username = username;
-    }
 
     @PostConstruct
     public void init() {
@@ -31,9 +26,8 @@ public class JwtProvider {
 
     }
 
-
     public String generateToken(Authentication authentication) {
-        UserDetailServiceImpl principal = (UserDetailServiceImpl) authentication.getPrincipal();
+        UserDetailsImpl principal = (UserDetailsImpl) authentication.getPrincipal();
         return Jwts.builder()
                 .setSubject(principal.getUsername())
                 .signWith(SignatureAlgorithm.HS512, secretkey)
